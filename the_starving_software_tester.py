@@ -13,9 +13,13 @@ Original file is located at
 !apt install chromium-chromedriver
 
 # Import necessary packages
+import matplotlib.pyplot as plt
+import pandas as pd
+import re
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-import pandas as pd
+from wordcloud import STOPWORDS
+from wordcloud import WordCloud
 
 # Configure Chromedriver options
 options = webdriver.ChromeOptions()
@@ -27,9 +31,8 @@ options.add_argument('--disable-dev-shm-usage')
 _driver = webdriver.Chrome(options=options)
 _url = "https://testdevjobs.com/location/remote-united-kingdom"
 
-### Modified from@ https://colab.research.google.com/drive/14kXYQCSGVye4bBKKExtuHOeq32bc4xbW?usp=sharing#scrollTo=dRAMB1_yt1jJ
+# Modified from @ https://colab.research.google.com/drive/14kXYQCSGVye4bBKKExtuHOeq32bc4xbW?usp=sharing#scrollTo=dRAMB1_yt1jJ
 
-# Get job listings
 def getJobListings(driver: str, url: str):
   driver.get(url)
   job_listings = _driver.find_elements(By.XPATH, "//*[@class='job-deatils']")
@@ -49,14 +52,13 @@ def traverseJobs(driver: str, url: str):
   job_id = []
 
   for job in job_listings:
-    fetchJobDetailsAndAddToList(driver, "//*[@class='ml-5 jobtitle is-size-5 has-text-weight-semibold']", job_title) # add title to jobs' titles list
-    fetchJobDetailsAndAddToList(driver, "//*[@class='tags ml-5 mr-1 mb-0']", job_location) # add location to jobs' locations list
+    fetchJobDetailsAndAddToList(driver, "//*[@class='ml-5 jobtitle is-size-5 has-text-weight-semibold']", job_title)
+    fetchJobDetailsAndAddToList(driver, "//*[@class='tags ml-5 mr-1 mb-0']", job_location)
     fetchJobDetailsAndAddToList(driver, "//*[@class='tags ml-5 mr-1']", job_skills)
     job_count =+ 1
     job_id.append(job_count)
 
   jobs_panda_frame = pd.DataFrame(list(zip(job_id, job_title, job_location, job_skills)), columns = ['ID', 'Title', 'Location', 'Skills'])
-
   return jobs_panda_frame.to_csv('jobs.csv')
 
 traverseJobs(_driver, _url)
@@ -64,5 +66,33 @@ traverseJobs(_driver, _url)
 # Prepare data for Voyant processing
 
 jobs_data = pd.read_csv("/content/jobs.csv")
+skills_data = jobs_data["Skills"]
+skills_data.head()
+
+# Save into a new CSV file
+skills_data.to_csv("skills.csv")
+
+# Create a word cloud
+text = " ".join(skills for skills in jobs_data.Skills.astype(str))
+stopwords = set(STOPWORDS)
+wordcloud = WordCloud().generate(text)
+
+# Customise the word cloud
+wordcloud = WordCloud(width=800, height=400, stopwords = stopwords, background_color='lightblue', max_words=100, colormap='Purples_r').generate(text) # https://www.geeksforgeeks.org/python/generating-word-cloud-python
+plt.figure(figsize=(10, 5))
+plt.imshow(wordcloud, interpolation='bilinear')
+plt.axis('on')
+plt.title("Desired Software Testing Skills")
+plt.show()
+
+# Prepare data for Palladio GIS processing as well as possible
+
+# Remove repetitions
+jobs_data.drop_duplicates(inplace = True)
 jobs_data.head()
-skills_csv = jobs_data['Skills'].to_csv('skills.csv')
+jobs_data.to_csv("updated_jobs.csv")
+
+location_data = jobs_data["Location"]
+location_data.to_csv("locations.csv")
+location_data.head()
+
