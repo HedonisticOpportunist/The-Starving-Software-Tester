@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import re
 import networkx as nx
+import os
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from wordcloud import STOPWORDS
@@ -113,4 +114,83 @@ pos = nx.kamada_kawai_layout(G)
 nx.draw(G, pos, with_labels=True, node_size=1500, node_color='purple', font_size=25, font_color='black', edge_color="pink")
 plt.title("Locations")
 plt.show()
+
+# Code generated from Microsoft Copilot (with noted modifications)
+
+# REMOVED IMPORTS
+
+# Load data
+file_path = '/content/updated_jobs.csv' # MODIFIED
+df = pd.read_csv(file_path)
+
+# Ensure output directory exists
+output_dir = '/content' # MODIFIED
+os.makedirs(output_dir, exist_ok=True)
+
+# --- Word Cloud ---
+# Extract and clean skills
+skills_series = df['Skills'].dropna().apply(lambda x: x.split('\n'))
+skills_flat = [skill.strip() for sublist in skills_series for skill in sublist]
+skills_text = ' '.join(skills_flat)
+
+# Generate word cloud
+wordcloud = WordCloud(width=800, height=400, background_color='white').generate(skills_text)
+plt.figure(figsize=(10, 5))
+plt.imshow(wordcloud, interpolation='bilinear')
+plt.axis('off')
+plt.title('Most Desirable Skills Word Cloud')
+wordcloud_path = os.path.join(output_dir, 'wordcloud.png')
+plt.savefig(wordcloud_path)
+plt.close()
+
+# --- Network Graph ---
+# Create co-occurrence edges
+from itertools import combinations, chain
+
+edges = []
+for skills in skills_series:
+    skills = [skill.strip() for skill in skills]
+    edges.extend(combinations(skills, 2))
+
+# Count edge frequencies
+from collections import Counter
+edge_counts = Counter(edges)
+
+# Build graph
+G = nx.Graph()
+for (skill1, skill2), weight in edge_counts.items():
+    G.add_edge(skill1, skill2, weight=weight)
+
+# Draw graph
+plt.figure(figsize=(10, 8))
+pos = nx.spring_layout(G, seed=42)
+nx.draw_networkx_nodes(G, pos, node_size=700, node_color='skyblue')
+nx.draw_networkx_edges(G, pos, width=[G[u][v]['weight'] for u,v in G.edges])
+nx.draw_networkx_labels(G, pos, font_size=10)
+plt.title('Skill Co-occurrence Network Graph')
+network_path = os.path.join(output_dir, 'network_graph.png')
+plt.savefig(network_path)
+plt.close()
+
+# --- UK Map with Remote Marker ---
+import geopandas as gpd
+from shapely.geometry import Point
+
+# Load UK map # MODIFIED https://github.com/mattijn/topojson/issues/224
+world = gpd.read_file(
+    "https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_admin_0_countries.geojson"
+)
+uk = world[world.name == 'United Kingdom']
+
+# Create dummy point for remote jobs
+remote_point = gpd.GeoDataFrame([{'geometry': Point(-1.5, 54.0), 'Location': 'Remote'}], crs='EPSG:4326')
+
+# Plot map
+fig, ax = plt.subplots(figsize=(8, 10))
+uk.plot(ax=ax, color='lightgrey')
+remote_point.plot(ax=ax, color='red', markersize=100)
+plt.title('Job Locations in the UK (Remote Highlighted)')
+map_path = os.path.join(output_dir, 'uk_map.png')
+plt.savefig(map_path)
+plt.close()
 
