@@ -16,6 +16,7 @@ Original file is located at
 import matplotlib.pyplot as plt
 import pandas as pd
 import re
+import networkx as nx
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from wordcloud import STOPWORDS
@@ -85,7 +86,7 @@ plt.axis('on')
 plt.title("Desired Software Testing Skills")
 plt.show()
 
-# Prepare data for Palladio GIS processing as well as possible
+# Prepare data for Palladio processing before working with OpenRefine.
 
 # Remove repetitions
 jobs_data.drop_duplicates(inplace = True)
@@ -95,4 +96,21 @@ jobs_data.to_csv("updated_jobs.csv")
 location_data = jobs_data["Location"]
 location_data.to_csv("locations.csv")
 location_data.head()
+
+# Load CSV exported from OpenRefine
+locations_csv = pd.read_csv("/content/locations_for_palladio.csv")
+locations_csv.head()
+
+# Create a network graph @ https://medium.com/@harshkjoya/connecting-the-dots-creating-network-graphs-from-pandas-dataframes-with-networkx-9c4fb60089cf
+G = nx.Graph()
+G.add_nodes_from(locations_csv['Column'])
+G.add_nodes_from(locations_csv['Location'])
+edges = [(row['Column'], row['Location']) for index, row in locations_csv.iterrows()]
+G.add_edges_from(edges)
+
+# Draw the graph
+pos = nx.kamada_kawai_layout(G)
+nx.draw(G, pos, with_labels=True, node_size=1500, node_color='purple', font_size=25, font_color='black', edge_color="pink")
+plt.title("Locations")
+plt.show()
 
